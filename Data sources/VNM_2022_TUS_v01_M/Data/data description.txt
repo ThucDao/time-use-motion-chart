@@ -1,0 +1,14 @@
+Data file: 1_cover_id_main
+Cases: 6001
+Variables: 29
+This file contains the basic information of the interview and the household asset part.
+
+Data file: 3_individual_id_main
+Cases: 6001
+Variables: 33
+This file contains the educational and employment information of 6,001 selected respondents.
+
+Data file: 4_diary_main
+Cases: 118933
+Variables: 26
+This file contains the time use diaries and activities of 6,001 selected respondents.
