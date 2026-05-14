@@ -1,0 +1,67 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Time User in Canada and Vietnam</title>
+<style>
+  body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f9;
+  }
+  h2 {
+      text-align: center;
+      padding: 20px 0;
+      margin: 0;
+      color: #333;
+  }
+  .container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center; /* Centers the charts */
+      width: 100%;
+      gap: 10px; /* Adds a little breathing room between them */
+      padding: 20px;
+      box-sizing: border-box;
+  }
+  .chart-box {
+      flex: 1 1 45%; /* Slightly less than 50% to prevent tight squeezing */
+      min-width: 300px; 
+      aspect-ratio: 1 / 1; /* Keeps the frame a perfect square */
+      overflow: hidden;
+        
+      /* MAGIC RESPONSIVE TRICK */
+      container-type: inline-size;
+  }
+  iframe {
+      width: 800px; /* This MUST exactly match your Python figsize width */
+      height: 800px; /* This MUST exactly match your Python figsize height */
+      border: none;
+      transform-origin: top left;
+
+      /* Dynamically scales the 800px chart down (or up) to fill 100% of its parent box! */
+      transform: scale(calc(100cqw / 800));
+  }
+  /* Media query to stack the charts vertically on smaller screens (mobile phones) */
+  @media (max-width: 1000px) {
+      .chart-box {
+          flex: 1 1 100%;
+      }
+  }
+</style>
+</head>
+<body>
+  <h2>Time Use Comparison: Canada vs Vietnam</h2>
+  <div class="container">
+      <div class="chart-box">
+          <iframe src="CA_moving_bubble_chart.html" title="Canadian Time Use"></iframe>
+      </div>
+      <div class="chart-box">
+          <iframe src="VN_moving_bubble_chart.html" title="Vietnamese Time Use"></iframe>
+      </div>
+  </div>
+</body>
+</html>
