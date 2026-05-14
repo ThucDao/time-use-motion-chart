@@ -230,7 +230,7 @@ a:hover {
 .clr {
   clear: both;
 }
-    body { font-size: 18px; }
+    body { font-size: 20px; }
 .node { stroke-width: 1.5px; }
 #current_day {
   font-size: 18px;
@@ -254,67 +254,148 @@ a:hover {
 </style>
 
         <style>
-            /* Main structure: Chart on top, panel on bottom */
-            #main-wrapper {
-                display: flex !important;
-                flex-direction: column-reverse !important; /* Puts chart on top, sidebar on bottom */
-                width: 100% !important;
-                align-items: center !important;
-                border: none !important;
+            @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+            
+            /* Apply Roboto font on everything, including D3 SVG text */
+            *, html, body {
+                font-family: 'Roboto', sans-serif !important;
             }
-            /* Remove borders and center sidebar */
-            #sidebar {
-                float: none !important;
+
+            /* Removes internal scrollbars */
+            html, body {
+                margin: 0 !important; 
+                padding: 0 !important;
+                overflow: hidden !important; /* Removes internal scrollbar */
+                background: white !important;
+            }
+            
+            /* Make the wrapper flexible */
+            #main-wrapper { 
+                display: flex !important; 
+                flex-direction: column-reverse !important; 
                 width: 100% !important; 
+                height: 100vh !important; /* Hugs the height of the iframe perfectly */
+                margin: 0 auto !important; 
+                align-items: center !important; 
+                justify-content: flex-end !important;
+                border: none !important; 
+            }
+            
+            /* Center the bottom control panel */
+            #sidebar { 
+                width: 100% !important; 
+                padding: 15px 0 !important; 
+                border: none !important; 
+                display: flex !important; 
+                flex-direction: column !important; 
+                align-items: center !important; 
                 height: auto !important;
-                border: none !important;
-                padding: 20px 0 !important;
-                margin: 0 !important;
-                display: flex !important;
-                flex-direction: column !important;
-                align-items: center !important;
-                background: none !important;
             }
-            #chart {
-                float: none !important;
-                width: 100% !important;
+            
+            /* Allow the chart container to shrink/grow */
+            #chart { 
+                width: 100% !important;  
+                max-width: 1000px !important; /* Match the chart figsize in Python */
+                aspect-ratio: 1 / 1 !important; /* Keeps the chart perfectly square */
+                height: auto !important; 
+                float: none !important; 
+                margin: 0 auto !important;
                 display: flex !important;
                 justify-content: center !important;
             }
-            #current_time {
-                font-size: 40px !important;
-                margin-bottom: 20px !important;
+            
+            /* Clean up the UI buttons and time display */
+            #current_time { 
+                font-size: 40px !important; 
+                color: #111 !important; 
+                display: block !important; 
+                opacity: 1 !important; 
+                margin: 0 0 10px 0 !important; 
+                font-weight: bold !important; 
                 text-align: center !important;
-                width: 100% !important;
             }
-            /* Separate and center the speed buttons */
-            #speed {
-                display: flex !important;
+            
+            #speed { 
+                display: flex !important; 
+                gap: 15px !important; 
+                margin: 0 0 5px 0 !important; 
+                float: none !important; 
                 justify-content: center !important;
-                gap: 15px !important;    /* Spaces between buttons */
-                margin-bottom: 25px !important;
-                float: none !important;
-                width: auto !important;
             }
-            .togglebutton {
-                float: none !important;
-                margin: 0 !important;
-                padding: 10px 20px !important;
-                border: 1px solid #ccc !important;
-                border-radius: 6px !important;
-                cursor: pointer !important;
-                background-color: #ffffff !important;
-                font-weight: bold !important;
+            
+            .togglebutton { 
+                padding: 8px 16px !important; 
+                border: 1px solid #aaa !important; 
+                border-radius: 5px !important; 
+                background: #fff !important; 
+                color: #111 !important; 
+                cursor: pointer !important; 
+                font-weight: bold !important; 
             }
-            /* 5. HIDE the dropdown and bold text labels 
-            ("Color on:" / "Save Chart:") */
-            #sidebar b, #ColorOptions {
-                display: none !important;
+            
+            .togglebutton.current { 
+                background: #333 !important; 
+                color: #fff !important; 
+                border-color: #111 !important; 
             }
-            /* Remove redundant spaces */
-            .clr { display: none !important; }
-            br { display: none !important; }
+
+            /* Hide everything else to remove the leftover short line */
+            #sidebar b, #ColorOptions, .clr, #day_info { display: none !important; }
         </style>
+        
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {
+                
+                // 1. Make the D3 SVG truly responsive using viewBox
+                // We check every 100ms because D3 takes a moment to generate the chart
+                var makeResponsive = setInterval(function() {
+                    var svg = document.querySelector("#chart svg");
+                    if (svg && !svg.hasAttribute("viewBox")) {
+                        var w = svg.getAttribute("width");
+                        var h = svg.getAttribute("height");
+                        if (w && h) {
+                            // Turn static width/height into a scaling viewBox
+                            svg.setAttribute("viewBox", "0 0 " + w + " " + h);
+                            svg.removeAttribute("width");
+                            svg.removeAttribute("height");
+                            svg.style.width = "100%";
+                            svg.style.height = "auto";
+                            svg.style.overflow = "visible";
+                            clearInterval(makeResponsive); // Stop checking once successful
+                        }
+                    }
+                }, 100);
+                
+                // 2. Fix the time format (remove Days, reset after 24 hours)
+                // parseInt(m) guarantees the math works and clock display
+                window.formatTime = function(m) {
+                    try {
+                        var mins = (parseInt(m) + 240) % 1440;
+                        if (isNaN(mins)) return "04:00";
+                        var hh = Math.floor(mins / 60);
+                        var mm = Math.floor(mins % 60);
+                        var formatted_hh = hh < 10 ? "0" + hh : hh;
+                        var formatted_mm = mm < 10 ? "0" + mm : mm;
+                        return formatted_hh + ":" + formatted_mm;
+                    } catch(e) { return "04:00"; }
+                };
+                
+                // 3. Keep the clock visible (bypasses internal library bugs)
+                setInterval(function() {
+                    var timeElement = document.getElementById('current_time');
+                    if (timeElement) { 
+                        timeElement.style.display = 'block'; 
+                        timeElement.style.opacity = '1'; 
+                    }
+                }, 100);
+                
+                // 4. Auto-select Medium speed visually
+                setTimeout(function() {
+                    var mediumButton = document.querySelector('.togglebutton[data-val="medium"]');
+                    if (mediumButton) mediumButton.classList.add('current');
+                }, 500);
+            });
+        </script>
         </head>
         
 
@@ -374,8 +455,8 @@ var USER_SPEED = "slow";
 var IS_PAUSED = false;
 var timer_handle = null;
 
-var width = 800,
-    height = 800,
+var width = 1000,
+    height = 1000,
 	padding = 1,
 	maxRadius = 3;
 	// color = d3.scale.category10();
