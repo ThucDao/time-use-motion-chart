@@ -261,60 +261,80 @@ a:hover {
                 font-family: 'Roboto', sans-serif !important;
             }
 
-            /* Removes internal scrollbars */
-            html, body {
+            /* Reset body margins and hide parent scrollbars */
+            body {
                 margin: 0 !important; 
                 padding: 0 !important;
+                display: flex !important; 
+                justify-content: center !important;
                 overflow: hidden !important; /* Removes internal scrollbar */
                 background: white !important;
+                width: 100% !important;
+                height: 100vh !important;
             }
             
-            /* Make the wrapper flexible */
+            /* Main wrapper spans 100% of the available width up to 1000px max */
             #main-wrapper { 
                 display: flex !important; 
-                flex-direction: column-reverse !important; 
+                flex-direction: column-reverse !important; /* Chart on top, buttons on bottom */
                 width: 100% !important; 
-                height: 100vh !important; /* Hugs the height of the iframe perfectly */
+                max-width: 1000px !important;
+                height: 100vh !important; 
                 margin: 0 auto !important; 
                 align-items: center !important; 
-                justify-content: flex-end !important;
+                justify-content: space-between !important;
+                box-sizing: border-box !important;
                 border: none !important; 
             }
             
-            /* Center the bottom control panel */
+            /* Chart container is fully responsive and fluid */
+            #chart {
+                width: 100% !important;  
+                height: auto !important; 
+                aspect-ratio: 1 / 1 !important; /* Keeps the chart perfectly square */
+                display: flex !important;
+                justify-content: center !important;
+                align-items: center !important;
+                flex-grow: 1 !important;
+                padding: 80px !important; /* FIX: Gives left/right/bottom labels plenty of breathing room */
+                box-sizing: border-box !important;
+            }
+
+            /* Force the inner SVG to shrink or expand fluidly with the card container */
+            #chart svg {
+                width: 100% !important;
+                height: auto !important;
+                max-width: 100% !important;
+                max-height: 100% !important;
+                overflow: visible !important; /* Prevents text labels from being chopped off at edges */
+            }
+            
+            /* Control panel and button area styling */
             #sidebar { 
                 width: 100% !important; 
-                padding: 15px 0 !important; 
-                border: none !important; 
+                padding: 10px 0 20px 0 !important; 
                 display: flex !important; 
                 flex-direction: column !important; 
                 align-items: center !important; 
-                height: auto !important;
+                border: none !important;
+                background: white !important;
             }
             
-            /* Allow the chart container to shrink/grow */
-            #chart { 
-                width: 100% !important;  
-                max-width: 1000px !important; /* Match the chart figsize in Python */
-                aspect-ratio: 1 / 1 !important; /* Keeps the chart perfectly square */
-                height: auto !important; 
-                float: none !important; 
-                margin: 0 auto !important;
-                display: flex !important;
-                justify-content: center !important;
-            }
-            
-            /* Clean up the UI buttons and time display */
+            /* Style the time clock */
             #current_time { 
                 font-size: 40px !important; 
-                color: #111 !important; 
-                display: block !important; 
-                opacity: 1 !important; 
-                margin: 0 0 10px 0 !important; 
-                font-weight: bold !important; 
+                font-weight: bold !important;
+                color: #111 !important;                 
                 text-align: center !important;
+                margin-bottom: 15px !important;
             }
-            
+
+            /* Hide the "Day X" text natively via CSS so it doesn't break JavaScript logic */
+            #current_time .time-day { 
+                display: none !important; 
+            }
+
+            /* Horizontal button row container */
             #speed { 
                 display: flex !important; 
                 gap: 15px !important; 
@@ -322,24 +342,26 @@ a:hover {
                 float: none !important; 
                 justify-content: center !important;
             }
-            
+
+            /* Style the individual button */
             .togglebutton { 
                 padding: 8px 16px !important; 
                 border: 1px solid #aaa !important; 
                 border-radius: 5px !important; 
                 background: #fff !important; 
-                color: #111 !important; 
-                cursor: pointer !important; 
+                color: #111 !important;  
                 font-weight: bold !important; 
+                cursor: pointer !important;
             }
-            
+
+            /* Highlight the currently active speed button */
             .togglebutton.current { 
                 background: #333 !important; 
                 color: #fff !important; 
                 border-color: #111 !important; 
             }
 
-            /* Hide unused elements AND the random horizontal line (<hr>) */
+            /* Hide unnecessary native layout elements and divider lines */
             #sidebar b, #ColorOptions, .clr, #day_info, #note, #cite, hr { 
                 display: none !important; 
             }
@@ -347,71 +369,27 @@ a:hover {
         
         <script>
             document.addEventListener("DOMContentLoaded", function() {
-                
-                // 1. Make the D3 SVG truly responsive using viewBox
-                // We check every 100ms because D3 takes a moment to generate the chart
-                var makeResponsive = setInterval(function() {
-                    var svg = document.querySelector("#chart svg");
-                    if (svg && !svg.hasAttribute("viewBox")) {
-                        var w = svg.getAttribute("width");
-                        var h = svg.getAttribute("height");
-                        if (w && h) {
-                            // Turn static width/height into a scaling viewBox
-                            svg.setAttribute("viewBox", "0 0 " + w + " " + h);
-                            svg.removeAttribute("width");
-                            svg.removeAttribute("height");
-                            svg.style.width = "100%";
-                            svg.style.height = "auto";
-                            svg.style.overflow = "visible";
-                            clearInterval(makeResponsive); // Stop checking once successful
-                        }
-                    }
-                }, 100);
-                
-                // 2. Safe Clock Fix (Let d3blocks run, just clean up the text after)
-                var timeNode = document.getElementById('current_time');
-                if (timeNode) {
-                    var observer = new MutationObserver(function(mutations) {
-                        mutations.forEach(function(mutation) {
-                            var text = timeNode.innerText || "";
-                            var newText = text;
-                            
-                            // If it says "1 days, 04:00:00", strip the days
-                            if (text.includes('days')) {
-                                var parts = text.split(',');
-                                if (parts.length > 1) {
-                                    newText = parts[1].trim();
-                                }
-                            }
-                            
-                            // If it says "04:00:00", strip the seconds
-                            var timeParts = newText.split(':');
-                            if (timeParts.length === 3) {
-                                newText = timeParts[0] + ':' + timeParts[1];
-                            }
-                            
-                            // Update only if we changed something to avoid infinite loops
-                            if (newText && newText !== text) {
-                                timeNode.innerText = newText;
-                            }
-                            
-                            // Force visibility if d3blocks tries to hide it
-                            if (timeNode.style.display === 'none' || timeNode.style.opacity === '0') {
-                                timeNode.style.display = 'block';
-                                timeNode.style.opacity = '1';
-                                timeNode.style.visibility = 'visible';
-                            }
-                        });
-                    });
+                // Safely override D3Blocks' time format function.
+                // D3Blocks hardcodes ":00" in its native code. This cleanly removes it.
+                window.formatTime = function(m) {
+                    var total_minutes = Math.floor(m) + 240; // 4:00 AM start time offset
+                    var rem = total_minutes % 1440;
+                    var hh = Math.floor(rem / 60);
+                    var mm = rem % 60;
+                    var pad = function(n) { return (n < 10 ? "0" : "") + n; };
                     
-                    // Start watching the clock text for changes
-                    observer.observe(timeNode, { childList: true, characterData: true, subtree: true, attributes: true });
-                }
+                    return {
+                        // Always return an empty string to permanently hide "Day X"
+                        day: "",
+                        // Return ONLY Hours and Minutes, omitting the seconds
+                        time: pad(hh) + ":" + pad(mm)
+                    };
+                };
                 
-                // 3. Auto-select Medium speed visually
+                // Auto-click the "Slow" button once upon loading
                 setTimeout(function() {
-                    var mediumButton = document.querySelector('.togglebutton[data-val="medium"]');
-                    if (mediumButton) mediumButton.classList.add('current');
+                    var btn = document.querySelector('.togglebutton[data-val="slow"]');
+                    if(btn) btn.click();
                 }, 500);
             });
         </script>
@@ -486,7 +464,7 @@ var sched_objs = [],
 // STATE PROPERTIES
 var act_codes = [{'index': '0', 'short': '01. Sleeping', 'desc': '01. Sleeping'}, {'index': '1', 'short': '02. Personal hygiene', 'desc': '02. Personal hygiene'}, {'index': '2', 'short': '03. Eating', 'desc': '03. Eating'}, {'index': '3', 'short': '13. Entertainment', 'desc': '13. Entertainment'}, {'index': '4', 'short': '16. Others', 'desc': '16. Others'}, {'index': '5', 'short': '04. Housework', 'desc': '04. Housework'}, {'index': '6', 'short': '11. Sport', 'desc': '11. Sport'}, {'index': '7', 'short': '05. Caring', 'desc': '05. Caring'}, {'index': '8', 'short': '14. TV/Youtube', 'desc': '14. TV/Youtube'}, {'index': '9', 'short': '10. Shopping', 'desc': '10. Shopping'}, {'index': '10', 'short': '07. Education', 'desc': '07. Education'}, {'index': '11', 'short': '15. Surf web', 'desc': '15. Surf web'}, {'index': '12', 'short': '12. Relaxing', 'desc': '12. Relaxing'}, {'index': '13', 'short': '06. Work', 'desc': '06. Work'}, {'index': '14', 'short': 'Travelling', 'desc': 'Travelling'}];
 var act_counts = {'0': 0, '1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0, '7': 0, '8': 0, '9': 0, '10': 0, '11': 0, '12': 0, '13': 0, '14': 0};
-var speeds = {'stop': 100000, 'slow': 1000, 'medium': 150, 'fast': 30};
+var speeds = {'stop': 100000, 'slow': 1000, 'medium': 150, 'fast': 20};
 var time_notes = [{"start_minute": 1, "stop_minute": 2, "note": ""}];
 var notes_index = 0;
 var colorByActivity = {'0': '#ff0000', '1': '#ff6a00', '2': '#ffd500', '3': '#bfff00', '4': '#4fff00', '5': '#00ff1b', '6': '#00ff86', '7': '#00fff6', '8': '#009eff', '9': '#0033ff', '10': '#3700ff', '11': '#a700ff', '12': '#ff00ed', '13': '#ff0082', '14': '#ff0018'} // array of the colors per state
