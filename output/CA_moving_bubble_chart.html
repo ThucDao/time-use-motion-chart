@@ -339,8 +339,10 @@ a:hover {
                 border-color: #111 !important; 
             }
 
-            /* Hide everything else to remove the leftover short line */
-            #sidebar b, #ColorOptions, .clr, #day_info { display: none !important; }
+            /* Hide unused elements AND the random horizontal line (<hr>) */
+            #sidebar b, #ColorOptions, .clr, #day_info, #note, #cite, hr { 
+                display: none !important; 
+            }
         </style>
         
         <script>
@@ -366,30 +368,47 @@ a:hover {
                     }
                 }, 100);
                 
-                // 2. Fix the time format (remove Days, reset after 24 hours)
-                // parseInt(m) guarantees the math works and clock display
-                window.formatTime = function(m) {
-                    try {
-                        var mins = (parseInt(m) + 240) % 1440;
-                        if (isNaN(mins)) return "04:00";
-                        var hh = Math.floor(mins / 60);
-                        var mm = Math.floor(mins % 60);
-                        var formatted_hh = hh < 10 ? "0" + hh : hh;
-                        var formatted_mm = mm < 10 ? "0" + mm : mm;
-                        return formatted_hh + ":" + formatted_mm;
-                    } catch(e) { return "04:00"; }
-                };
+                // 2. Safe Clock Fix (Let d3blocks run, just clean up the text after)
+                var timeNode = document.getElementById('current_time');
+                if (timeNode) {
+                    var observer = new MutationObserver(function(mutations) {
+                        mutations.forEach(function(mutation) {
+                            var text = timeNode.innerText || "";
+                            var newText = text;
+                            
+                            // If it says "1 days, 04:00:00", strip the days
+                            if (text.includes('days')) {
+                                var parts = text.split(',');
+                                if (parts.length > 1) {
+                                    newText = parts[1].trim();
+                                }
+                            }
+                            
+                            // If it says "04:00:00", strip the seconds
+                            var timeParts = newText.split(':');
+                            if (timeParts.length === 3) {
+                                newText = timeParts[0] + ':' + timeParts[1];
+                            }
+                            
+                            // Update only if we changed something to avoid infinite loops
+                            if (newText && newText !== text) {
+                                timeNode.innerText = newText;
+                            }
+                            
+                            // Force visibility if d3blocks tries to hide it
+                            if (timeNode.style.display === 'none' || timeNode.style.opacity === '0') {
+                                timeNode.style.display = 'block';
+                                timeNode.style.opacity = '1';
+                                timeNode.style.visibility = 'visible';
+                            }
+                        });
+                    });
+                    
+                    // Start watching the clock text for changes
+                    observer.observe(timeNode, { childList: true, characterData: true, subtree: true, attributes: true });
+                }
                 
-                // 3. Keep the clock visible (bypasses internal library bugs)
-                setInterval(function() {
-                    var timeElement = document.getElementById('current_time');
-                    if (timeElement) { 
-                        timeElement.style.display = 'block'; 
-                        timeElement.style.opacity = '1'; 
-                    }
-                }, 100);
-                
-                // 4. Auto-select Medium speed visually
+                // 3. Auto-select Medium speed visually
                 setTimeout(function() {
                     var mediumButton = document.querySelector('.togglebutton[data-val="medium"]');
                     if (mediumButton) mediumButton.classList.add('current');
